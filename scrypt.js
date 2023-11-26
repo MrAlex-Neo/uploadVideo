@@ -1,9 +1,68 @@
-const KINESCOPE_AUTH_TOKEN = 'your_kinescope_auth_token';
-const PARENT_ID = 'your_parent_id';
-const TITLE = 'your_video_title';
-const DESCRIPTION = 'your_video_description';
+const accessToken = 'ebe5ee4da347b0d8f8ee6191f9f3b222';
+const folderName = 'DesCloud';
+let folderId;
 
-function uploadVideo() {
+function checkFolderExistenceAndUploadVideo() {
+    // Проверяем существование папки
+    checkFolderExistence(folderName)
+        .then(folder => {
+            if (folder) {
+                // Папка существует, загружаем видео в эту папку
+                folderId = folder.id;
+                initiateVideoUpload();
+            } else {
+                // Папка не существует, создаем новую папку и загружаем видео после ее создания
+                createFolder(folderName)
+                    .then(newFolder => {
+                        folderId = newFolder.id;
+                        initiateVideoUpload();
+                    })
+                    .catch(error => alert('Error creating folder: ' + error));
+            }
+        })
+        .catch(error => alert('Error checking folder existence: ' + error));
+}
+
+function checkFolderExistence(folderName) {
+    return new Promise((resolve, reject) => {
+        const checkFolderUrl = 'https://api.vimeo.com/me/projects';
+
+        fetch(checkFolderUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Content-Type': 'application/json',
+            },
+        })
+            .then(response => response.json())
+            .then(data => {
+                const folder = Array.isArray(data.data) ? data.data.find(item => item.name === folderName) : null;
+                console.log(folder)
+                resolve(folder);
+            })
+            .catch(error => reject(error));
+    });
+}
+
+function createFolder(folderName) {
+    return new Promise((resolve, reject) => {
+        const createFolderUrl = 'https://api.vimeo.com/me/projects';
+
+        fetch(createFolderUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: folderName }),
+        })
+            .then(response => response.json())
+            .then(data => resolve(data))
+            .catch(error => reject(error));
+    });
+}
+
+function initiateVideoUpload() {
     const videoInput = document.getElementById('videoInput');
     const videoFile = videoInput.files[0];
 
@@ -12,110 +71,69 @@ function uploadVideo() {
         return;
     }
 
-    const formData = new FormData();
-    formData.append('file', videoFile);
+    const initiateUploadUrl = 'https://api.vimeo.com/me/videos';
 
-    const xhr = new XMLHttpRequest();
-    const url = 'https://cors-anywhere.herokuapp.com/https://uploader.kinescope.io/v2/video';
-
-    xhr.open('POST', url, true);
-    xhr.setRequestHeader('Authorization', 'Bearer ' + KINESCOPE_AUTH_TOKEN);
-    xhr.setRequestHeader('X-Parent-ID', PARENT_ID);
-    xhr.setRequestHeader('X-Video-Title', TITLE);
-    xhr.setRequestHeader('X-Video-Description', DESCRIPTION);
-
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4) {
-            if (xhr.status === 200) {
-                const response = JSON.parse(xhr.responseText);
-
-                if (response.id) {
-                    alert('Video uploaded successfully! Video ID: ' + response.id);
-
-                    // Отправить videoId на ваш бекенд
-                    sendVideoIdToBackend(response.id);
-                } else {
-                    alert('Error: Video ID not found in the response.');
-                }
-            } else {
-                alert('Error uploading video: ' + xhr.statusText);
-            }
-        }
-    };
-
-    xhr.send(formData);
-}
-
-function sendVideoIdToBackend(videoId) {
-    // Здесь вы можете использовать fetch или другой метод для отправки videoId на ваш бекенд
-    // использование fetch:
-    fetch('your_backend_endpoint', {
+    fetch(initiateUploadUrl, {
         method: 'POST',
         headers: {
+            'Authorization': 'Bearer ' + accessToken,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ videoId: videoId }),
+        body: JSON.stringify({ upload: { approach: 'post', size: videoFile.size }, name: videoFile.name, folder: folderId }),
     })
         .then(response => response.json())
-        .then(data => console.log('Video ID sent to backend:', data))
-        .catch(error => console.error('Error sending video ID to backend:', error));
+        .then(data => {
+            const uploadUrl = data.upload.upload_link;
+
+            // Загружаем видео
+            uploadVideoFile(uploadUrl, videoFile, data.uri);
+        })
+        .catch(error => alert('Error initiating upload: ' + error));
 }
 
 
-// const accessToken = 'YOUR_ACCESS_TOKEN';
+function uploadVideoFile(uploadUrl, videoFile, videoUri) {
+    fetch(uploadUrl, {
+        method: 'PUT',
+        body: videoFile,
+    })
+        .then(response => {
+            if (response.ok) {
+                alert('Video uploaded successfully!');
 
-// function uploadVideo() {
-//     const videoInput = document.getElementById('videoInput');
-//     const videoFile = videoInput.files[0];
+                // Добавляем загруженное видео в папку DesCloud
+                addToFolder(videoUri);
+            } else {
+                alert('Error uploading video: ' + response.statusText);
+            }
+        })
+        .catch(error => alert('Error uploading video: ' + error));
+}
 
-//     if (!videoFile) {
-//         alert('Please select a video file.');
-//         return;
-//     }
+// const addToFolderUrl = `https://api.vimeo.com/user/129330837/folder/18633851/items`;
 
-//     const xhr = new XMLHttpRequest();
-//     const url = 'https://api.vimeo.com/me/videos';
+function addToFolder(videoUri) {
+    const addToFolderUrl = `https://api.vimeo.com${videoUri}/projects/${folderId}/items`;
 
-//     xhr.open('POST', url, true);
-//     xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
-//     xhr.setRequestHeader('Content-Type', 'application/json');
-
-//     xhr.onreadystatechange = function () {
-//         if (xhr.readyState === 4) {
-//             if (xhr.status === 200) {
-//                 const response = JSON.parse(xhr.responseText);
-//                 const uploadUrl = response.upload.link;
-
-//                 // Загрузка видео
-//                 const uploadXhr = new XMLHttpRequest();
-//                 uploadXhr.open('PUT', uploadUrl, true);
-//                 uploadXhr.setRequestHeader('Content-Type', 'video/*');
-
-//                 uploadXhr.onreadystatechange = function () {
-//                     if (uploadXhr.readyState === 4) {
-//                         if (uploadXhr.status === 200) {
-//                             alert('Video uploaded successfully!');
-//                         } else {
-//                             alert('Error uploading video: ' + uploadXhr.statusText);
-//                         }
-//                     }
-//                 };
-
-//                 uploadXhr.send(videoFile);
-//             } else {
-//                 alert('Error initiating upload: ' + xhr.statusText);
-//             }
-//         }
-//     };
-
-//     xhr.send(JSON.stringify({ upload: { approach: 'post' } }));
-// }
+    fetch(addToFolderUrl, {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + accessToken,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items: [{ uri: videoUri }] }),
+    })
+        .then(response => {
+            if (response.ok) {
+                alert('Video added to folder successfully!');
+            } else {
+                alert('Error adding video to folder: ' + response.statusText);
+            }
+        })
+        .catch(error => alert('Error adding video to folder: ' + error));
+}
 
 
 
-// Из соображений безопасности, выполнение запросов на загрузку файлов
-// на стороне клиента(в браузере) с использованием чистого JavaScript 
-// ограничивается политиками Same - Origin Policy(SOP) и CORS(Cross - Origin Resource Sharing).
-// Это предотвращает отправку запросов к другим доменам из JavaScript на стороне клиента без соответствующих заголовков CORS на сервере.
-
-// Однако, вы можете использовать сторонние сервисы, предоставляющие прокси для обхода политики CORS. Один из таких сервисов — CORS Anywhere.
+// Вызываем функцию при загрузке страницы
+checkFolderExistenceAndUploadVideo();
