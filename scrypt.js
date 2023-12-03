@@ -100,7 +100,7 @@ function uploadVideoFile(uploadUrl, videoFile, videoUri) {
         .then(response => {
             if (response.ok) {
                 alert('Video uploaded successfully!');
-
+                document.getElementById('videoInput').value = '';
                 // Добавляем загруженное видео в папку DesCloud
                 addToFolder(videoUri);
             } else {
