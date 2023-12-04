@@ -67,6 +67,7 @@ function createFolder(folderName) {
     });
 }
 
+
 function initiateVideoUpload(folderId, userId) {
     const videoInput = document.getElementById('videoInput');
     const videoFile = videoInput.files[0];
@@ -90,12 +91,38 @@ function initiateVideoUpload(folderId, userId) {
         .then(data => {
             const uploadUrl = data.upload.upload_link;
 
-            // Загружаем видео
-            console.log(folderId);
+            // Upload the video
             uploadVideoFile(uploadUrl, videoFile, data.uri, folderId, userId);
+
+            // Get the video info (including thumbnail) after successful upload
+            getVideoInfo(data.uri, folderId, userId);
         })
         .catch(error => alert('Error initiating upload: ' + error));
 }
+
+function getVideoInfo(videoUri, folderId, userId) {
+    const getVideoInfoUrl = `https://api.vimeo.com${videoUri}`;
+
+    fetch(getVideoInfoUrl, {
+        method: 'GET',
+        headers: {
+            'Authorization': 'Bearer ' + accessToken,
+            'Content-Type': 'application/json',
+        },
+    })
+        .then(response => response.json())
+        .then(data => {
+            // Extract the thumbnail URL from the video data
+            const thumbnailUrl = data.pictures.sizes[0].link;
+
+            // Display the thumbnail in your HTML (you can replace 'thumbnailImage' with the ID or class of your image element)
+            const thumbnailImage = document.getElementById('thumbnailImage');
+            thumbnailImage.src = thumbnailUrl;
+        })
+        .catch(error => alert('Error getting video info: ' + error));
+}
+
+
 
 function uploadVideoFile(uploadUrl, videoFile, videoUri, folderId, userId) {
     fetch(uploadUrl, {
