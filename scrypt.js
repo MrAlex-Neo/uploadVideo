@@ -1,7 +1,7 @@
 const accessToken = 'ebe5ee4da347b0d8f8ee6191f9f3b222';
 const folderName = 'DesCloud';
 let folderId;
-let userId; // Определите переменную userId
+let userId; // Определяем переменную userId
 
 function checkFolderExistenceAndUploadVideo() {
     // Проверяем существование папки
@@ -91,7 +91,6 @@ function initiateVideoUpload(folderId, userId) {
         .then(data => {
             const uploadUrl = data.upload.upload_link;
 
-            // Upload the video
             uploadVideoFile(uploadUrl, videoFile, data.uri, folderId, userId);
 
             // Get the video info (including thumbnail) after successful upload
@@ -100,7 +99,6 @@ function initiateVideoUpload(folderId, userId) {
         .catch(error => alert('Error initiating upload: ' + error));
 }
 
-// ... (your existing code)
 
 function getVideoInfo(videoUri, folderId, userId) {
     const getVideoInfoUrl = `https://api.vimeo.com${videoUri}`;
@@ -141,7 +139,6 @@ function getVideoInfo(videoUri, folderId, userId) {
         .catch(error => alert('Error getting video info: ' + error));
 }
 
-// ... (your existing code)
 
 
 
