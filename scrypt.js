@@ -1,6 +1,7 @@
 const accessToken = 'ebe5ee4da347b0d8f8ee6191f9f3b222';
 const folderName = 'DesCloud';
 let folderId;
+let userId; // Определите переменную userId
 
 function checkFolderExistenceAndUploadVideo() {
     // Проверяем существование папки
@@ -8,14 +9,18 @@ function checkFolderExistenceAndUploadVideo() {
         .then(folder => {
             if (folder) {
                 // Папка существует, загружаем видео в эту папку
-                folderId = folder.id;
-                initiateVideoUpload();
+                folderId = folder.resource_key;
+                userId = folder.user.resource_key;
+                console.log(folderId);
+                console.log(userId);
+                initiateVideoUpload(folderId, userId);
             } else {
                 // Папка не существует, создаем новую папку и загружаем видео после ее создания
                 createFolder(folderName)
                     .then(newFolder => {
-                        folderId = newFolder.id;
-                        initiateVideoUpload();
+                        folderId = newFolder.resource_key;
+                        userId = newFolder.user.resource_key;
+                        initiateVideoUpload(folderId, userId);
                     })
                     .catch(error => alert('Error creating folder: ' + error));
             }
@@ -37,7 +42,7 @@ function checkFolderExistence(folderName) {
             .then(response => response.json())
             .then(data => {
                 const folder = Array.isArray(data.data) ? data.data.find(item => item.name === folderName) : null;
-                console.log(folder)
+                console.log(folder);
                 resolve(folder);
             })
             .catch(error => reject(error));
@@ -62,7 +67,7 @@ function createFolder(folderName) {
     });
 }
 
-function initiateVideoUpload() {
+function initiateVideoUpload(folderId, userId) {
     const videoInput = document.getElementById('videoInput');
     const videoFile = videoInput.files[0];
 
@@ -86,13 +91,13 @@ function initiateVideoUpload() {
             const uploadUrl = data.upload.upload_link;
 
             // Загружаем видео
-            uploadVideoFile(uploadUrl, videoFile, data.uri);
+            console.log(folderId);
+            uploadVideoFile(uploadUrl, videoFile, data.uri, folderId, userId);
         })
         .catch(error => alert('Error initiating upload: ' + error));
 }
 
-
-function uploadVideoFile(uploadUrl, videoFile, videoUri) {
+function uploadVideoFile(uploadUrl, videoFile, videoUri, folderId, userId) {
     fetch(uploadUrl, {
         method: 'PUT',
         body: videoFile,
@@ -102,7 +107,8 @@ function uploadVideoFile(uploadUrl, videoFile, videoUri) {
                 alert('Video uploaded successfully!');
                 document.getElementById('videoInput').value = '';
                 // Добавляем загруженное видео в папку DesCloud
-                addToFolder(videoUri);
+                console.log(folderId);
+                addToFolder(videoUri, folderId, userId);
             } else {
                 alert('Error uploading video: ' + response.statusText);
             }
@@ -110,10 +116,11 @@ function uploadVideoFile(uploadUrl, videoFile, videoUri) {
         .catch(error => alert('Error uploading video: ' + error));
 }
 
-// const addToFolderUrl = `https://api.vimeo.com/user/129330837/folder/18633851/items`;
-
-function addToFolder(videoUri) {
-    const addToFolderUrl = `https://api.vimeo.com${videoUri}/projects/${folderId}/items`;
+function addToFolder(videoUri, folderId, userId) {
+    console.log(folderId);
+    console.log(videoUri);
+    const addToFolderUrl = `https://api.vimeo.com/users/${userId}/projects/${folderId}/items`;
+    // const addToFolderUrl = `https://api.vimeo.com${videoUri}/projects/${folderId}/items`;
 
     fetch(addToFolderUrl, {
         method: 'POST',
@@ -133,7 +140,4 @@ function addToFolder(videoUri) {
         .catch(error => alert('Error adding video to folder: ' + error));
 }
 
-
-
-// Вызываем функцию при загрузке страницы
 checkFolderExistenceAndUploadVideo();
