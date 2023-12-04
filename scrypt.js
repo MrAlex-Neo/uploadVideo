@@ -100,8 +100,15 @@ function initiateVideoUpload(folderId, userId) {
         .catch(error => alert('Error initiating upload: ' + error));
 }
 
+// ... (your existing code)
+
 function getVideoInfo(videoUri, folderId, userId) {
     const getVideoInfoUrl = `https://api.vimeo.com${videoUri}`;
+
+    // Function to check if video is optimized
+    function isVideoOptimized(videoData) {
+        return videoData.transcode.status === 'complete';
+    }
 
     fetch(getVideoInfoUrl, {
         method: 'GET',
@@ -112,15 +119,30 @@ function getVideoInfo(videoUri, folderId, userId) {
     })
         .then(response => response.json())
         .then(data => {
-            // Extract the thumbnail URL from the video data
-            const thumbnailUrl = data.pictures.sizes[0].link;
+            if (isVideoOptimized(data)) {
+                // Extract the thumbnail URL from the video data
+                const thumbnailUrl = data.pictures.sizes[0].link;
 
-            // Display the thumbnail in your HTML (you can replace 'thumbnailImage' with the ID or class of your image element)
-            const thumbnailImage = document.getElementById('thumbnailImage');
-            thumbnailImage.src = thumbnailUrl;
+                // Display the thumbnail in your HTML (you can replace 'thumbnailImage' with the ID or class of your image element)
+                const thumbnailImage = document.getElementById('thumbnailImage');
+                thumbnailImage.src = thumbnailUrl;
+            } else if (data.transcode.status === 'in_progress') {
+                // If video optimization is in progress, wait and check again
+                const thumbnailUrl = data.pictures.sizes[0].link;
+
+                // Display the thumbnail in your HTML (you can replace 'thumbnailImage' with the ID or class of your image element)
+                const thumbnailImage = document.getElementById('thumbnailImage');
+                thumbnailImage.src = thumbnailUrl;
+                setTimeout(() => getVideoInfo(videoUri, folderId, userId), 1000); // Adjust the timeout as needed
+            } else {
+                alert('Error: Video optimization failed.');
+            }
         })
         .catch(error => alert('Error getting video info: ' + error));
 }
+
+// ... (your existing code)
+
 
 
 
